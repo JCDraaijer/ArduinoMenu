@@ -14,6 +14,11 @@ typedef enum MenuState {
     EXIT
 } MenuState;
 
+typedef struct SetState {
+    uint8_t readFirstChar;
+    uint8_t newValue;
+} SetState;
+
 void showMenu(MenuState *state, int *continueRunning);
 
 int8_t hexToInt(uint8_t character);

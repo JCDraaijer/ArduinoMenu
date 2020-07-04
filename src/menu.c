@@ -12,13 +12,14 @@ MenuState showLedMenu(int *printed);
 
 MenuState showI2CMenu(int *printed);
 
-MenuState showI2CSetMenu(int *printed, uint8_t *valueToSet, MenuState originalState);
+MenuState showI2CSetMenu(int *printed, uint8_t *valueToSet, MenuState originalState, SetState *setState);
 
 void printMenu(const char *const *strings, int amtOfStrings, int *printed, CharResult *inputResult);
 
 void printTemperature();
 
 void showMenu(MenuState *state, int *continueRunning) {
+    static SetState setState = {0, 0};
     static uint32_t counter = 0;
     counter++;
     MenuState currentState = *state;
@@ -39,14 +40,14 @@ void showMenu(MenuState *state, int *continueRunning) {
             *state = showI2CMenu(&printed);
             break;
         case I2C_MENU_SET_ADDR:
-            *state = showI2CSetMenu(&printed, &i2cdataAddress, *state);
+            *state = showI2CSetMenu(&printed, &i2cdataAddress, *state, &setState);
             break;
         case I2C_MENU_SET_SLAVE:
-            *state = showI2CSetMenu(&printed, &i2cslaveAddress, *state);
+            *state = showI2CSetMenu(&printed, &i2cslaveAddress, *state, &setState);
             break;
         case EXIT:
         default:
-            sendLine("Exiting program...");
+            sendLine("Exiting menu...");
             *continueRunning = 0;
             break;
     }
@@ -159,9 +160,9 @@ MenuState showI2CMenu(int *printed) {
     }
 }
 
-MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState) {
-    static uint8_t readFirstChar = 0;
-    static uint8_t newValue;
+MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, SetState *setState) {
+    // static uint8_t readFirstChar = 0;
+    // static uint8_t newValue;
 
     const char *const menuItemsFirst[] = {
             "Input most significant hex digit (or q):",
@@ -169,7 +170,7 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState) 
     };
 
     CharResult input;
-    printMenu(menuItemsFirst + readFirstChar, 1, printed, &input);
+    printMenu(menuItemsFirst + setState->readFirstChar, 1, printed, &input);
     if (!input.success) {
         return originalState;
     }
@@ -179,37 +180,35 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState) 
     // If input is q, go back to I2C menu. If it's not q, and invalid, print invalid output and return to
     // original state.
     if (input.value == 'q') {
-        readFirstChar = 0;
+        setState->readFirstChar = 0;
         return I2C_MENU;
     } else if (value == -1) {
         sendLine("Invalid input. (Must be 0-F)");
         return originalState;
     }
     // Determine the mask and shift values based on whether it's the first or second character that is read
-    int8_t mask;
-    int8_t shift;
+    int8_t mask = 0xF0;
+    int8_t shift = 0;
 
-    if (!readFirstChar) {
+    if (!setState->readFirstChar) {
         mask = 0x0F;
         shift = 4;
-    } else {
-        mask = 0xF0;
-        shift = 0;
     }
 
     // Apply mask (to prevent "spill" from previously set values) and add the value, shifted into the right
     // position
-    newValue &= mask;
-    newValue += value << shift;
+    setState->newValue &= mask;
+    setState->newValue += value << shift;
 
     // Return the correct next state, and update readFirstChar appropriately
-    if (!readFirstChar) {
-        readFirstChar = 1;
+    // If finished, update the value that is supposed to be updated accordingly
+    if (!setState->readFirstChar) {
+        setState->readFirstChar = 1;
         return originalState;
     } else {
-        *toSet = newValue;
-        newValue = 0;
-        readFirstChar = 0;
+        *toSet = setState->newValue;
+        setState->newValue = 0;
+        setState->readFirstChar = 0;
         return I2C_MENU;
     }
 }
