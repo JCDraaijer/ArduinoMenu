@@ -251,7 +251,7 @@ MenuState showLedMenu(int *printed) {
         return TOGGLE_LED_MENU;
     }
 
-    uint8_t portBvalue = getPORTB();
+    uint8_t portBvalue = PORTB;
     char inChar = input.value;
 
     if (inChar == 'a') {
