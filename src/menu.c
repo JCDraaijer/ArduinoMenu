@@ -47,7 +47,7 @@ void showMenu(MenuState *state, int *continueRunning) {
             break;
         case EXIT:
         default:
-            sendLine("Exiting menu...");
+            printLine("Exiting menu...");
             *continueRunning = 0;
             break;
     }
@@ -56,13 +56,13 @@ void showMenu(MenuState *state, int *continueRunning) {
 void sendUnknownCharMsg(char character) {
     static char *data = "Unknown option \" \"";
     data[16] = character;
-    sendLine(data);
+    printLine(data);
 }
 
 void printMenu(const char *const *strings, const int amtOfStrings, int *printed, CharResult *inputResult) {
     if (!*printed) {
         for (int i = 0; i < amtOfStrings; i++) {
-            sendLine(strings[i]);
+            printLine(strings[i]);
         }
         *printed = 1;
     }
@@ -82,7 +82,7 @@ MenuState showMainMenu(int *printed) {
              "b - go to the 2nd menu",
              "c - reprint the main menu",
              "l - go to the LED menu",
-             "p - print seconds thingie",
+             "p - print the temperature",
              "r - go to i2c menu",
              "q - exit the program"};
 
@@ -95,7 +95,7 @@ MenuState showMainMenu(int *printed) {
 
     switch (input.value) {
         case 'a':
-            sendLine("Here we print something");
+            printLine("Here we print something");
             return MAIN_MENU;
         case 'b':
             return SECONDARY_MENU;
@@ -128,12 +128,12 @@ MenuState showI2CMenu(int *printed, I2CInfo *info) {
     };
     CharResult input;
     if (!*printed) {
-        sendStr("SLV addr: ");
+        printStr("SLV addr: ");
         sendHexInt(info->slaveAddress);
-        sendStr(NEWLINE);
-        sendStr("DATA addr: ");
+        printStr(NEWLINE);
+        printStr("DATA addr: ");
         sendHexInt(info->dataAddress);
-        sendStr(NEWLINE);
+        printStr(NEWLINE);
     }
     printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
     if (!input.success) {
@@ -147,9 +147,9 @@ MenuState showI2CMenu(int *printed, I2CInfo *info) {
         case 'r': {
             uint8_t value;
             twireadsingle(i2cInfo.slaveAddress, i2cInfo.dataAddress, &value);
-            sendStr("DATA value: 0x");
+            printStr("DATA value: 0x");
             sendHexInt(value);
-            sendStr(NEWLINE);
+            printStr(NEWLINE);
             return I2C_MENU;
         }
         case 'q':
@@ -161,13 +161,12 @@ MenuState showI2CMenu(int *printed, I2CInfo *info) {
 }
 
 MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, SetState *setState) {
-    const char *const menuItemsFirst[] = {
-            "Input most significant hex digit (or q):",
-            "Input least significant hex digit (or q):"
-    };
-
+    if (!*printed){
+        printLine("Input 2-digit hexadecimal number (or q to quit)");
+        *printed = 1;
+    }
     CharResult input;
-    printMenu(menuItemsFirst + setState->readFirstChar, 1, printed, &input);
+    getChar(&input);
     if (!input.success) {
         return originalState;
     }
@@ -180,7 +179,9 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, 
         setState->readFirstChar = 0;
         return I2C_MENU;
     } else if (value == -1) {
-        sendLine("Invalid input. (Must be 0-F)");
+        printLine("Invalid input. (Must be 0-F)");
+        setState->readFirstChar = 0;
+        *printed = 0;
         return originalState;
     }
     // Determine the mask and shift values based on whether it's the first or second character that is read
@@ -204,6 +205,7 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, 
         return originalState;
     } else {
         *toSet = setState->newValue;
+        *printed = 0;
         setState->newValue = 0;
         setState->readFirstChar = 0;
         return I2C_MENU;
@@ -265,11 +267,11 @@ MenuState showLedMenu(int *printed) {
     switch (inChar) {
         case 'b':
             PORTB = 0xFF;
-            sendLine("Toggled LED on");
+            printLine("Toggled LED on");
             return TOGGLE_LED_MENU;
         case 'c':
             PORTB = 0x00;
-            sendLine("Toggled LED off");
+            printLine("Toggled LED off");
             return TOGGLE_LED_MENU;
         case 'q':
             return MAIN_MENU;
@@ -289,27 +291,22 @@ void printTemperature() {
 
     const char *data = "Temperature: ";
 
-    sendStr(data);
+    printStr(data);
     if (temp_msb < 0) {
-        sendChar('-');
+        printChar('-');
         temp_msb = temp_msb * -1;
     }
 
-    sendChar((temp_msb / 10) + ASCII_DECIMAL_OFFSET);
-    sendChar((temp_msb % 10) + ASCII_DECIMAL_OFFSET);
-    sendChar('.');
+    printChar((temp_msb / 10) + ASCII_DECIMAL_OFFSET);
+    printChar((temp_msb % 10) + ASCII_DECIMAL_OFFSET);
+    printChar('.');
     if (temp_lsb == 0b00) {
-        sendChar('0');
-        sendChar('0');
+        printLine("00");
     } else if (temp_lsb == 0b01) {
-        sendChar('2');
-        sendChar('5');
+        printLine("25");
     } else if (temp_lsb == 0b10) {
-        sendChar('5');
-        sendChar('0');
+        printLine("50");
     } else if (temp_lsb == 0b11) {
-        sendChar('7');
-        sendChar('5');
+        printLine("75");
     }
-    sendStr(NEWLINE);
 }

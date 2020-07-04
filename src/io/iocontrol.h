@@ -6,7 +6,8 @@
 #define DS3231_ADDR 0x68
 
 #define ASCII_DECIMAL_OFFSET 48
-#define ASCII_HEX_OFFSET 65
+#define ASCII_HEX_UPPERCASE_OFFSET 65
+#define ASCII_HEX_LOWERCASE_OFFSET 97
 
 #define NEWLINE "\r\n"
 
@@ -19,11 +20,11 @@ void enableUart();
 
 void getChar(CharResult *);
 
-void sendChar(uint8_t data);
+void printChar(uint8_t data);
 
-void sendLine(const char *data);
+void printLine(const char *data);
 
-void sendStr(const char *data);
+void printStr(const char *data);
 
 void sendHexInt(const uint8_t data);
 

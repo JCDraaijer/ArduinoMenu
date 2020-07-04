@@ -20,23 +20,23 @@ void enableUart() {
  * Get a character from UART, non-blocking
  */
 void getChar(CharResult *storage) {
-    static char charSendBuffer[] = " ";
     if (!(UCSR0A & _BV(RXC0))) {
         storage->success = 0;
     } else {
         storage->success = 1;
         storage->value = UDR0;
-        charSendBuffer[0] = storage->value;
-        sendLine(charSendBuffer);
+        printChar(storage->value);
     }
 }
 
-// Convert a hex character to an integer (0-F supported)
+// Convert a hex character to an integer (0-F OR 0-f supported)
 int8_t hexToInt(uint8_t character) {
     if (character >= '0' && character <= '9') {
         return (character - ASCII_DECIMAL_OFFSET);
     } else if (character >= 'A' && character <= 'F') {
-        return (character - ASCII_HEX_OFFSET) + 10;
+        return (character - ASCII_HEX_UPPERCASE_OFFSET) + 10;
+    } else if (character >= 'a' || character <= 'f') {
+        return (character - ASCII_HEX_LOWERCASE_OFFSET) + 10;
     } else {
         return -1;
     }
@@ -47,33 +47,33 @@ int8_t intToHex(uint8_t integer) {
     if (integer >= 0 && integer <= 9) {
         return integer + ASCII_DECIMAL_OFFSET;
     } else if (integer >= 10 && integer <= 16) {
-        return (integer - 10) + ASCII_HEX_OFFSET;
+        return (integer - 10) + ASCII_HEX_UPPERCASE_OFFSET;
     } else {
         return -1;
     }
 }
 
 // Send a character over UART (blocking)
-void sendChar(const uint8_t data) {
+void printChar(uint8_t data) {
     while (!(UCSR0A & _BV(UDRE0)));
     UDR0 = data;
 }
 
-void sendStr(const char *data){
+void printStr(const char *data) {
     char value;
     while ((value = *(data++)) != 0) {
-        sendChar(value);
+        printChar(value);
     }
 }
 
-void sendHexInt(const uint8_t data){
-    sendChar(intToHex((data & 0xF0) >> 4));
-    sendChar(intToHex(data & 0x0F));
+void sendHexInt(const uint8_t data) {
+    printChar(intToHex((data & 0xF0) >> 4));
+    printChar(intToHex(data & 0x0F));
 }
 
-void sendLine(const char *data) {
-    sendStr(data);
-    sendStr(NEWLINE);
+void printLine(const char *data) {
+    printStr(data);
+    printStr(NEWLINE);
 }
 
 void twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer) {
