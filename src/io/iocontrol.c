@@ -20,6 +20,26 @@ void getChar(CharResult *storage) {
     }
 }
 
+int8_t hexToInt(uint8_t character) {
+    if (character >= '0' && character <= '9') {
+        return (character - ASCII_DECIMAL_OFFSET);
+    } else if (character >= 'A' && character <= 'F') {
+        return (character - ASCII_HEX_OFFSET) + 10;
+    } else {
+        return -1;
+    }
+}
+
+int8_t intToHex(uint8_t integer) {
+    if (integer >= 0 && integer <= 9) {
+        return integer + ASCII_DECIMAL_OFFSET;
+    } else if (integer >= 10 && integer <= 16) {
+        return (integer - 10) + ASCII_HEX_OFFSET;
+    } else {
+        return -1;
+    }
+}
+
 void sendChar(const uint8_t data) {
     while (!(UCSR0A & _BV(UDRE0)));
     UDR0 = data;
@@ -32,10 +52,14 @@ void sendStr(const char *data){
     }
 }
 
+void sendHexInt(const uint8_t data){
+    sendChar(intToHex((data & 0xF0) >> 4));
+    sendChar(intToHex(data & 0x0F));
+}
+
 void sendLine(const char *data) {
     sendStr(data);
-    sendChar('\r');
-    sendChar('\n');
+    sendStr(NEWLINE);
 }
 
 inline void setDDRB(uint8_t value) {

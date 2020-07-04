@@ -1,8 +1,8 @@
 #include "menu.h"
 #include "io/iocontrol.h"
 
-static uint8_t i2cslaveAddress = 0x68;
-static uint8_t i2cdataAddress = 0x11;
+static uint8_t i2cslaveAddress = 0x00;
+static uint8_t i2cdataAddress = 0x00;
 
 MenuState showMainMenu(int *printed);
 
@@ -49,27 +49,6 @@ void showMenu(MenuState *state, int *continueRunning) {
             sendLine("Exiting program...");
             *continueRunning = 0;
             break;
-    }
-}
-
-
-int8_t hexToInt(uint8_t character) {
-    if (character >= '0' && character <= '9') {
-        return (character - ASCII_DECIMAL_OFFSET);
-    } else if (character >= 'A' && character <= 'F') {
-        return (character - ASCII_HEX_OFFSET) + 10;
-    } else {
-        return -1;
-    }
-}
-
-int8_t intToHex(uint8_t integer) {
-    if (integer >= 0 && integer <= 9) {
-        return integer + ASCII_DECIMAL_OFFSET;
-    } else if (integer >= 10 && integer <= 16) {
-        return (integer - 10) + ASCII_HEX_OFFSET;
-    } else {
-        return -1;
     }
 }
 
@@ -144,17 +123,16 @@ MenuState showI2CMenu(int *printed) {
             "s - set slave address",
             "d - set data address",
             "r - read a byte",
+            "q - return to the main menu"
     };
     CharResult input;
     if (!*printed) {
         sendStr("SLV addr: ");
-        sendChar(intToHex((i2cslaveAddress & 0xF0) >> 4));
-        sendChar(intToHex(i2cslaveAddress & 0x0F));
-        sendStr("\r\n");
+        sendHexInt(i2cslaveAddress);
+        sendStr(NEWLINE);
         sendStr("DATA addr: ");
-        sendChar(intToHex((i2cdataAddress & 0xF0) >> 4));
-        sendChar(intToHex(i2cdataAddress & 0x0F));
-        sendStr("\r\n");
+        sendHexInt(i2cdataAddress);
+        sendStr(NEWLINE);
     }
     printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
     if (!input.success) {
@@ -169,9 +147,8 @@ MenuState showI2CMenu(int *printed) {
             uint8_t value;
             twireadsingle(i2cslaveAddress, i2cdataAddress, &value);
             sendStr("DATA value: 0x");
-            sendChar(intToHex((value & 0xF0) >> 4));
-            sendChar(intToHex(value & 0x0F));
-            sendStr("\r\n");
+            sendHexInt(value);
+            sendStr(NEWLINE);
             return I2C_MENU;
         }
         case 'q':
@@ -191,48 +168,48 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState) 
             "Input least significant hex digit (or q):"
     };
 
+    CharResult input;
+    printMenu(menuItemsFirst + readFirstChar, 1, printed, &input);
+    if (!input.success) {
+        return originalState;
+    }
+
+    int8_t value = hexToInt(input.value);
+
+    // If input is q, go back to I2C menu. If it's not q, and invalid, print invalid output and return to
+    // original state.
+    if (input.value == 'q') {
+        readFirstChar = 0;
+        return I2C_MENU;
+    } else if (value == -1) {
+        sendLine("Invalid input. (Must be 0-F)");
+        return originalState;
+    }
+    // Determine the mask and shift values based on whether it's the first or second character that is read
+    int8_t mask;
+    int8_t shift;
+
     if (!readFirstChar) {
-        CharResult input;
-        printMenu(menuItemsFirst, 1, printed, &input);
-        if (!input.success) {
-            return originalState;
-        }
+        mask = 0x0F;
+        shift = 4;
+    } else {
+        mask = 0xF0;
+        shift = 0;
+    }
 
-        int8_t value = hexToInt(input.value);
+    // Apply mask (to prevent "spill" from previously set values) and add the value, shifted into the right
+    // position
+    newValue &= mask;
+    newValue += value << shift;
 
-        if (value != -1) {
-            newValue &= 0x0F;
-            newValue += value << 4;
-        } else if (input.value == 'q') {
-            readFirstChar = 0;
-            return I2C_MENU;
-        } else {
-            sendLine("Invalid input. (Must be 0-F");
-            return originalState;
-        }
+    // Return the correct next state, and update readFirstChar appropriately
+    if (!readFirstChar) {
         readFirstChar = 1;
         return originalState;
     } else {
-        CharResult input;
-        printMenu(menuItemsFirst + 1, 1, printed, &input);
-        if (!input.success) {
-            return originalState;
-        }
-
-        int8_t value = hexToInt(input.value);
-
-        if (value != -1) {
-            newValue &= 0xF0;
-            newValue += value;
-        } else if (input.value == 'q') {
-            readFirstChar = 0;
-            return I2C_MENU;
-        } else {
-            sendLine("Invalid input. (Must be 0-F)");
-            return originalState;
-        }
-        readFirstChar = 0;
         *toSet = newValue;
+        newValue = 0;
+        readFirstChar = 0;
         return I2C_MENU;
     }
 }
@@ -313,28 +290,29 @@ void printTemperature() {
     twireadsingle(DS3231_ADDR, 0x12, &temp_lsb);
     temp_lsb >>= 6;
 
-    char *data = "Temperature:       ";
-    uint8_t index = sizeof("Temperature: ") - 1;
-    if (temp_lsb < 0) {
-        data[index++] = '-';
+    const char *data = "Temperature: ";
+
+    sendStr(data);
+    if (temp_msb < 0) {
+        sendChar('-');
+        temp_msb = temp_msb * -1;
     }
 
-    data[index++] = (temp_msb / 10) + ASCII_DECIMAL_OFFSET;
-    data[index++] = (temp_msb % 10) + ASCII_DECIMAL_OFFSET;
-    data[index++] = '.';
+    sendChar((temp_msb / 10) + ASCII_DECIMAL_OFFSET);
+    sendChar((temp_msb % 10) + ASCII_DECIMAL_OFFSET);
+    sendChar('.');
     if (temp_lsb == 0b00) {
-        data[index++] = '0';
-        data[index++] = '0';
+        sendChar('0');
+        sendChar('0');
     } else if (temp_lsb == 0b01) {
-        data[index++] = '2';
-        data[index++] = '5';
+        sendChar('2');
+        sendChar('5');
     } else if (temp_lsb == 0b10) {
-        data[index++] = '5';
-        data[index++] = '0';
+        sendChar('5');
+        sendChar('0');
     } else if (temp_lsb == 0b11) {
-        data[index++] = '7';
-        data[index++] = '5';
+        sendChar('7');
+        sendChar('5');
     }
-    data[index] = 0;
-    sendLine(data);
+    sendStr(NEWLINE);
 }

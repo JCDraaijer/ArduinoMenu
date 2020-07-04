@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#define ASCII_DECIMAL_OFFSET 48
-#define ASCII_HEX_OFFSET 65
-
 typedef enum MenuState {
     UNINITIALIZED,
     MAIN_MENU,
