@@ -17,12 +17,6 @@ typedef struct CharResult {
 
 void enableUart();
 
-void setDDRB(uint8_t value);
-
-void setPORTB(uint8_t value);
-
-uint8_t getPORTB();
-
 void getChar(CharResult *);
 
 void sendChar(uint8_t data);

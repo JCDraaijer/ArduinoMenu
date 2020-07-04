@@ -1,3 +1,4 @@
+#include <avr/io.h>
 #include "menu.h"
 #include "io/iocontrol.h"
 
@@ -263,11 +264,11 @@ MenuState showLedMenu(int *printed) {
 
     switch (inChar) {
         case 'b':
-            setPORTB(0xFF);
+            PORTB = 0xFF;
             sendLine("Toggled LED on");
             return TOGGLE_LED_MENU;
         case 'c':
-            setPORTB(0x00);
+            PORTB = 0x00;
             sendLine("Toggled LED off");
             return TOGGLE_LED_MENU;
         case 'q':

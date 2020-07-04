@@ -15,13 +15,13 @@ uint16_t counter = 0;
 // This interrupt is triggered every millisecond.
 // It toggles PORTB (and the onboard-LED connected to it) and runs the menu
 ISR(TIMER0_COMPA_vect) {
-    if (getPORTB() != previousValue) {
-        previousValue = getPORTB();
+    if (PORTB != previousValue) {
+        previousValue = PORTB;
         nextValue = ~previousValue;
         counter = 0;
     } else if (counter++ == 1000) {
-        previousValue = getPORTB();
-        setPORTB(nextValue);
+        previousValue = PORTB;
+        PORTB = nextValue;
         nextValue ^= 0xFFu;
         counter = 0;
     }
@@ -35,7 +35,7 @@ ISR(TIMER0_COMPA_vect) {
 // defined above every millisecond
 int main(void) {
     enableUart();
-    setDDRB(0xff);
+    DDRB = 0xff;
     setup1MSTimer();
     sei();
     while (running);

@@ -2,12 +2,23 @@
 #include <util/twi.h>
 #include "iocontrol.h"
 
-
+/* Enable UART
+ * baud rate quickref:
+ * BR    = UBRRval
+ * 2400  = 416
+ * 4800  = 207
+ * 9600  = 103
+ * 38.4k = 25
+ * 250k  = 3
+ */
 void enableUart() {
     UBRR0 = 25;
     UCSR0B |= _BV(TXEN0) | _BV(RXEN0);
 }
 
+/*
+ * Get a character from UART, non-blocking
+ */
 void getChar(CharResult *storage) {
     static char charSendBuffer[] = " ";
     if (!(UCSR0A & _BV(RXC0))) {
@@ -20,6 +31,7 @@ void getChar(CharResult *storage) {
     }
 }
 
+// Convert a hex character to an integer (0-F supported)
 int8_t hexToInt(uint8_t character) {
     if (character >= '0' && character <= '9') {
         return (character - ASCII_DECIMAL_OFFSET);
@@ -30,6 +42,7 @@ int8_t hexToInt(uint8_t character) {
     }
 }
 
+// Convert an int to a hex character (0-16 supported)
 int8_t intToHex(uint8_t integer) {
     if (integer >= 0 && integer <= 9) {
         return integer + ASCII_DECIMAL_OFFSET;
@@ -40,6 +53,7 @@ int8_t intToHex(uint8_t integer) {
     }
 }
 
+// Send a character over UART (blocking)
 void sendChar(const uint8_t data) {
     while (!(UCSR0A & _BV(UDRE0)));
     UDR0 = data;
@@ -60,19 +74,6 @@ void sendHexInt(const uint8_t data){
 void sendLine(const char *data) {
     sendStr(data);
     sendStr(NEWLINE);
-}
-
-inline void setDDRB(uint8_t value) {
-    DDRB = value;
-}
-
-inline uint8_t getPORTB() {
-    uint8_t value = PORTB;
-    return value;
-}
-
-inline void setPORTB(uint8_t value) {
-    PORTB = value;
 }
 
 void twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer) {
