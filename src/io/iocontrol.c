@@ -79,6 +79,8 @@ void twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer) {
     twiread(slaveAddress, dataAddr, buffer, 1);
 }
 
+// An unsafe-as-all-hell twi read function (doesn't check for collisions or arbitration issues, just tries it's very best
+// to read some data from the address that it's given
 void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len) {
     // Shift address to the left by one, so it will be put into the address register correctly
     slaveAddress = slaveAddress << 1;

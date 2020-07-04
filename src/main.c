@@ -12,6 +12,8 @@ uint8_t nextValue = 0x00;
 uint8_t previousValue = 0x00;
 uint16_t counter = 0;
 
+// This interrupt is triggered every millisecond.
+// It toggles PORTB (and the onboard-LED connected to it) and runs the menu
 ISR(TIMER0_COMPA_vect) {
     if (getPORTB() != previousValue) {
         previousValue = getPORTB();
@@ -29,6 +31,8 @@ ISR(TIMER0_COMPA_vect) {
     TCNT0 = 0;
 }
 
+// Do initial setup, enable output on DDRB, setup the timer so it will trigger an interrupt and go to the vector
+// defined above every millisecond
 int main(void) {
     enableUart();
     setDDRB(0xff);

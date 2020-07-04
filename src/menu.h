@@ -19,6 +19,11 @@ typedef struct SetState {
     uint8_t newValue;
 } SetState;
 
+typedef struct I2CInfo {
+    uint8_t slaveAddress;
+    uint8_t dataAddress;
+} I2CInfo;
+
 void showMenu(MenuState *state, int *continueRunning);
 
 int8_t hexToInt(uint8_t character);

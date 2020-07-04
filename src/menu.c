@@ -1,8 +1,7 @@
 #include "menu.h"
 #include "io/iocontrol.h"
 
-static uint8_t i2cslaveAddress = 0x00;
-static uint8_t i2cdataAddress = 0x00;
+I2CInfo i2cInfo = {0x00, 0x00};
 
 MenuState showMainMenu(int *printed);
 
@@ -10,7 +9,7 @@ MenuState showSecondaryMenu(int *printed);
 
 MenuState showLedMenu(int *printed);
 
-MenuState showI2CMenu(int *printed);
+MenuState showI2CMenu(int *printed, I2CInfo *info);
 
 MenuState showI2CSetMenu(int *printed, uint8_t *valueToSet, MenuState originalState, SetState *setState);
 
@@ -37,13 +36,13 @@ void showMenu(MenuState *state, int *continueRunning) {
             *state = showLedMenu(&printed);
             break;
         case I2C_MENU:
-            *state = showI2CMenu(&printed);
-            break;
-        case I2C_MENU_SET_ADDR:
-            *state = showI2CSetMenu(&printed, &i2cdataAddress, *state, &setState);
+            *state = showI2CMenu(&printed, &i2cInfo);
             break;
         case I2C_MENU_SET_SLAVE:
-            *state = showI2CSetMenu(&printed, &i2cslaveAddress, *state, &setState);
+            *state = showI2CSetMenu(&printed, &i2cInfo.slaveAddress, *state, &setState);
+            break;
+        case I2C_MENU_SET_ADDR:
+            *state = showI2CSetMenu(&printed, &i2cInfo.dataAddress, *state, &setState);
             break;
         case EXIT:
         default:
@@ -117,7 +116,7 @@ MenuState showMainMenu(int *printed) {
     }
 }
 
-MenuState showI2CMenu(int *printed) {
+MenuState showI2CMenu(int *printed, I2CInfo *info) {
     const char *const menuItems[] = {
             "I2C Menu:",
             "Options:",
@@ -129,10 +128,10 @@ MenuState showI2CMenu(int *printed) {
     CharResult input;
     if (!*printed) {
         sendStr("SLV addr: ");
-        sendHexInt(i2cslaveAddress);
+        sendHexInt(info->slaveAddress);
         sendStr(NEWLINE);
         sendStr("DATA addr: ");
-        sendHexInt(i2cdataAddress);
+        sendHexInt(info->dataAddress);
         sendStr(NEWLINE);
     }
     printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
@@ -146,7 +145,7 @@ MenuState showI2CMenu(int *printed) {
             return I2C_MENU_SET_ADDR;
         case 'r': {
             uint8_t value;
-            twireadsingle(i2cslaveAddress, i2cdataAddress, &value);
+            twireadsingle(i2cInfo.slaveAddress, i2cInfo.dataAddress, &value);
             sendStr("DATA value: 0x");
             sendHexInt(value);
             sendStr(NEWLINE);
@@ -161,9 +160,6 @@ MenuState showI2CMenu(int *printed) {
 }
 
 MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, SetState *setState) {
-    // static uint8_t readFirstChar = 0;
-    // static uint8_t newValue;
-
     const char *const menuItemsFirst[] = {
             "Input most significant hex digit (or q):",
             "Input least significant hex digit (or q):"
@@ -282,6 +278,7 @@ MenuState showLedMenu(int *printed) {
     }
 }
 
+// Print the temperature of a DS3231 connected to the TWI of this arduino
 void printTemperature() {
     int8_t temp_msb;
     twireadsingle(DS3231_ADDR, 0x11, &temp_msb);
