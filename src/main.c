@@ -1,6 +1,5 @@
 #include "menu.h"
 #include "io/iocontrol.h"
-#include "io/timer.h"
 
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
@@ -14,6 +13,7 @@ uint16_t counter = 0;
 // This interrupt is triggered every millisecond.
 // It toggles PORTB (and the onboard-LED connected to it) and runs the menu
 ISR(TIMER0_COMPA_vect) {
+    TCNT0 = 0;
     if (PORTB != previousValue) {
         previousValue = PORTB;
         nextValue = ~previousValue;
@@ -24,7 +24,6 @@ ISR(TIMER0_COMPA_vect) {
         nextValue ^= 0xFFu;
         counter = 0;
     }
-    TCNT0 = 0;
 }
 
 // Do initial setup, enable output on DDRB, setup the timer so it will trigger an interrupt and go to the vector

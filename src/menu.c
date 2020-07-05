@@ -2,6 +2,8 @@
 #include "menu.h"
 #include "io/iocontrol.h"
 
+#define SHOULD_BLOCK 0
+
 MenuState showMainMenu(uint8_t *printed);
 
 MenuState showSecondaryMenu(uint8_t *printed);
@@ -67,7 +69,7 @@ void printMenu(uint8_t *printed, const char *const *strings, int amtOfStrings, C
         *printed = 1;
     }
 
-    getChar(inputResult, 1);
+    getChar(inputResult, 1, SHOULD_BLOCK);
 }
 
 
@@ -167,7 +169,7 @@ MenuState showI2CSetMenu(uint8_t *printed, SetInfo *setInfo, uint8_t *valueToSet
         *printed = 1;
     }
     CharResult input;
-    getChar(&input, setInfo->readFirstChar);
+    getChar(&input, setInfo->readFirstChar, SHOULD_BLOCK);
     if (!input.success) {
         return originalState;
     }

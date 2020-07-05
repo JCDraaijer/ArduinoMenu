@@ -18,7 +18,7 @@ MACRO(AVR_CREATE_HEX name filename)
     ADD_CUSTOM_COMMAND(TARGET ${name} POST_BUILD COMMAND avrdude ARGS -qq -p ${MCU} -c arduino -U flash:w:${name}.bin -P ${SERIALDEV})
 ENDMACRO(AVR_CREATE_HEX)
 
-add_executable(main src/main.c src/io/iocontrol.c src/io/iocontrol.h src/menu.c src/menu.h src/io/timer.c src/io/timer.h)
+add_executable(main src/main.c src/io/iocontrol.c src/io/iocontrol.h src/menu.c src/menu.h)
 target_link_options(main PRIVATE "LINKER:-print-memory-usage")
 AVR_CREATE_HEX(main main)
 

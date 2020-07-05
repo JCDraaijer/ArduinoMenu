@@ -16,9 +16,11 @@ typedef struct CharResult {
     uint8_t value;
 } CharResult;
 
+void setup1MSTimer();
+
 void enableUart();
 
-void getChar(CharResult *result, uint8_t newline);
+void getChar(CharResult *result, uint8_t newline, uint8_t blocking);
 
 void printChar(uint8_t data);
 

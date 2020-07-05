@@ -17,19 +17,14 @@ void enableUart() {
 }
 
 /*
- * Get a character from UART, non-blocking
+ * Set the prescaler to 64
+ * Set the comparison register to 250
+ * 1/16000000 * (250 * 64) = 16000/16000000 = 1/1000 seconds -> 1000 Hz rate
  */
-void getChar(CharResult *storage, uint8_t newline) {
-    if (!(UCSR0A & _BV(RXC0))) {
-        storage->success = 0;
-    } else {
-        storage->success = 1;
-        storage->value = UDR0;
-        printChar(storage->value);
-        if (newline){
-            printStr(NEWLINE);
-        }
-    }
+void setup1MSTimer() {
+    TCCR0B |= _BV(CS01) | _BV(CS00);
+    OCR0A = 250;
+    TIMSK0 |= _BV(OCIE0A);
 }
 
 // Convert a hex character to an integer (0-F and 0-f supported)
@@ -53,6 +48,25 @@ int8_t intToHex(uint8_t integer) {
         return (integer - 10) + ASCII_HEX_UPPERCASE_OFFSET;
     } else {
         return -1;
+    }
+}
+
+/*
+ * Get a character from UART
+ */
+void getChar(CharResult *result, uint8_t newline, uint8_t blocking) {
+    if (blocking) {
+        while (!(UCSR0A & _BV(RXC0)));
+    }
+    if (!(UCSR0A & _BV(RXC0))) {
+        result->success = 0;
+    } else {
+        result->success = 1;
+        result->value = UDR0;
+        printChar(result->value);
+        if (newline) {
+            printStr(NEWLINE);
+        }
     }
 }
 
