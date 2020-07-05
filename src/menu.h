@@ -14,17 +14,26 @@ typedef enum MenuState {
     EXIT
 } MenuState;
 
-typedef struct SetState {
+typedef struct SetInfo {
     uint8_t readFirstChar;
     uint8_t newValue;
-} SetState;
+} SetInfo;
 
 typedef struct I2CInfo {
     uint8_t slaveAddress;
     uint8_t dataAddress;
 } I2CInfo;
 
-void showMenu(MenuState *state, int *continueRunning);
+typedef struct MenuContext {
+    MenuState currentState;
+    SetInfo setInfo;
+    I2CInfo i2CInfo;
+    uint32_t callCounter;
+    uint8_t printed;
+} MenuContext;
+
+
+void showMenu(MenuContext *info, int *continueRunning);
 
 int8_t hexToInt(uint8_t character);
 

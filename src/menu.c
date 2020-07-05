@@ -2,48 +2,43 @@
 #include "menu.h"
 #include "io/iocontrol.h"
 
-I2CInfo i2cInfo = {0x00, 0x00};
+MenuState showMainMenu(uint8_t *printed);
 
-MenuState showMainMenu(int *printed);
+MenuState showSecondaryMenu(uint8_t *printed);
 
-MenuState showSecondaryMenu(int *printed);
+MenuState showLedMenu(uint8_t *printed);
 
-MenuState showLedMenu(int *printed);
+MenuState showI2CMenu(uint8_t *printed, I2CInfo *info);
 
-MenuState showI2CMenu(int *printed, I2CInfo *info);
+MenuState showI2CSetMenu(uint8_t *printed, SetInfo *setInfo, uint8_t *valueToSet, MenuState originalState);
 
-MenuState showI2CSetMenu(int *printed, uint8_t *valueToSet, MenuState originalState, SetState *setState);
-
-void printMenu(const char *const *strings, int amtOfStrings, int *printed, CharResult *inputResult);
+void printMenu(uint8_t *printed, const char *const *strings, int amtOfStrings, CharResult *inputResult);
 
 void printTemperature();
 
-void showMenu(MenuState *state, int *continueRunning) {
-    static SetState setState = {0, 0};
-    static uint32_t counter = 0;
-    counter++;
-    MenuState currentState = *state;
-    static int printed = 0;
-
+void showMenu(MenuContext *info, int *continueRunning) {
+    uint8_t *printed = &info->printed;
+    info->callCounter++;
+    MenuState currentState = info->currentState;
     switch (currentState) {
         case UNINITIALIZED:
         case MAIN_MENU:
-            *state = showMainMenu(&printed);
+            info->currentState = showMainMenu(printed);
             break;
         case SECONDARY_MENU:
-            *state = showSecondaryMenu(&printed);
+            info->currentState = showSecondaryMenu(printed);
             break;
         case TOGGLE_LED_MENU:
-            *state = showLedMenu(&printed);
+            info->currentState = showLedMenu(printed);
             break;
         case I2C_MENU:
-            *state = showI2CMenu(&printed, &i2cInfo);
+            info->currentState = showI2CMenu(printed, &info->i2CInfo);
             break;
         case I2C_MENU_SET_SLAVE:
-            *state = showI2CSetMenu(&printed, &i2cInfo.slaveAddress, *state, &setState);
+            info->currentState = showI2CSetMenu(printed, &info->setInfo, &info->i2CInfo.slaveAddress, currentState);
             break;
         case I2C_MENU_SET_ADDR:
-            *state = showI2CSetMenu(&printed, &i2cInfo.dataAddress, *state, &setState);
+            info->currentState = showI2CSetMenu(printed, &info->setInfo, &info->i2CInfo.dataAddress, currentState);
             break;
         case EXIT:
         default:
@@ -51,15 +46,20 @@ void showMenu(MenuState *state, int *continueRunning) {
             *continueRunning = 0;
             break;
     }
+    if (currentState != info->currentState){
+        *printed = 0;
+    }
 }
 
 void sendUnknownCharMsg(char character) {
     static char *data = "Unknown option \" \"";
-    data[16] = character;
+    if (character >= ' ' && character <= '~'){
+        data[16] = character;
+    }
     printLine(data);
 }
 
-void printMenu(const char *const *strings, const int amtOfStrings, int *printed, CharResult *inputResult) {
+void printMenu(uint8_t *printed, const char *const *strings, int amtOfStrings, CharResult *inputResult) {
     if (!*printed) {
         for (int i = 0; i < amtOfStrings; i++) {
             printLine(strings[i]);
@@ -67,14 +67,11 @@ void printMenu(const char *const *strings, const int amtOfStrings, int *printed,
         *printed = 1;
     }
 
-    getChar(inputResult);
-    if (inputResult->success) {
-        *printed = 0;
-    }
+    getChar(inputResult, 1);
 }
 
 
-MenuState showMainMenu(int *printed) {
+MenuState showMainMenu(uint8_t *printed) {
     const char *const menuitems[] =
             {"Main menu",
              "Options:",
@@ -87,11 +84,13 @@ MenuState showMainMenu(int *printed) {
              "q - exit the program"};
 
     CharResult input;
-    printMenu(menuitems, sizeof(menuitems) / sizeof(char **), printed, &input);
+    printMenu(printed, menuitems, sizeof(menuitems) / sizeof(char **), &input);
 
     if (!input.success) {
         return MAIN_MENU;
     }
+
+    *printed = 0;
 
     switch (input.value) {
         case 'a':
@@ -117,7 +116,7 @@ MenuState showMainMenu(int *printed) {
     }
 }
 
-MenuState showI2CMenu(int *printed, I2CInfo *info) {
+MenuState showI2CMenu(uint8_t *printed, I2CInfo *info) {
     const char *const menuItems[] = {
             "I2C Menu:",
             "Options:",
@@ -135,7 +134,7 @@ MenuState showI2CMenu(int *printed, I2CInfo *info) {
         sendHexInt(info->dataAddress);
         printStr(NEWLINE);
     }
-    printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
+    printMenu(printed, menuItems, sizeof(menuItems) / sizeof(char **), &input);
     if (!input.success) {
         return I2C_MENU;
     }
@@ -146,27 +145,29 @@ MenuState showI2CMenu(int *printed, I2CInfo *info) {
             return I2C_MENU_SET_ADDR;
         case 'r': {
             uint8_t value;
-            twireadsingle(i2cInfo.slaveAddress, i2cInfo.dataAddress, &value);
+            twireadsingle(info->slaveAddress, info->dataAddress, &value);
             printStr("DATA value: 0x");
             sendHexInt(value);
             printStr(NEWLINE);
+            *printed = 0;
             return I2C_MENU;
         }
         case 'q':
             return MAIN_MENU;
         default:
             sendUnknownCharMsg(input.value);
+            *printed = 0;
             return I2C_MENU;
     }
 }
 
-MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, SetState *setState) {
+MenuState showI2CSetMenu(uint8_t *printed, SetInfo *setInfo, uint8_t *valueToSet, MenuState originalState) {
     if (!*printed){
         printLine("Input 2-digit hexadecimal number (or q to quit)");
         *printed = 1;
     }
     CharResult input;
-    getChar(&input);
+    getChar(&input, setInfo->readFirstChar);
     if (!input.success) {
         return originalState;
     }
@@ -176,11 +177,11 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, 
     // If input is q, go back to I2C menu. If it's not q, and invalid, print invalid output and return to
     // original state.
     if (input.value == 'q') {
-        setState->readFirstChar = 0;
+        setInfo->readFirstChar = 0;
         return I2C_MENU;
     } else if (value == -1) {
         printLine("Invalid input. (Must be 0-F)");
-        setState->readFirstChar = 0;
+        setInfo->readFirstChar = 0;
         *printed = 0;
         return originalState;
     }
@@ -188,31 +189,31 @@ MenuState showI2CSetMenu(int *printed, uint8_t *toSet, MenuState originalState, 
     int8_t mask = 0xF0;
     int8_t shift = 0;
 
-    if (!setState->readFirstChar) {
+    if (!setInfo->readFirstChar) {
         mask = 0x0F;
         shift = 4;
     }
 
     // Apply mask (to prevent "spill" from previously set values) and add the value, shifted into the right
     // position
-    setState->newValue &= mask;
-    setState->newValue += value << shift;
+    setInfo->newValue &= mask;
+    setInfo->newValue += value << shift;
 
     // Return the correct next state, and update readFirstChar appropriately
     // If finished, update the value that is supposed to be updated accordingly
-    if (!setState->readFirstChar) {
-        setState->readFirstChar = 1;
+    if (!setInfo->readFirstChar) {
+        setInfo->readFirstChar = 1;
         return originalState;
     } else {
-        *toSet = setState->newValue;
+        *valueToSet = setInfo->newValue;
+        setInfo->newValue = 0;
+        setInfo->readFirstChar = 0;
         *printed = 0;
-        setState->newValue = 0;
-        setState->readFirstChar = 0;
         return I2C_MENU;
     }
 }
 
-MenuState showSecondaryMenu(int *printed) {
+MenuState showSecondaryMenu(uint8_t *printed) {
     const char *const menuItems[] = {
             "Secondary menu",
             "Options:",
@@ -220,11 +221,11 @@ MenuState showSecondaryMenu(int *printed) {
             "q - return to the main menu"
     };
     CharResult input;
-    printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
+    printMenu(printed, menuItems, sizeof(menuItems) / sizeof(char **), &input);
     if (!input.success) {
         return SECONDARY_MENU;
     }
-
+    *printed = 0;
     switch (input.value) {
         case 'a':
             return SECONDARY_MENU;
@@ -236,7 +237,7 @@ MenuState showSecondaryMenu(int *printed) {
     }
 }
 
-MenuState showLedMenu(int *printed) {
+MenuState showLedMenu(uint8_t *printed) {
     const char *const menuItems[] = {
             "Led toggle menu",
             "Options:",
@@ -247,7 +248,7 @@ MenuState showLedMenu(int *printed) {
     };
 
     CharResult input;
-    printMenu(menuItems, sizeof(menuItems) / sizeof(char **), printed, &input);
+    printMenu(printed, menuItems, sizeof(menuItems) / sizeof(char **), &input);
 
     if (!input.success) {
         return TOGGLE_LED_MENU;
@@ -263,6 +264,7 @@ MenuState showLedMenu(int *printed) {
             inChar = 'c';
         }
     }
+    *printed = 0;
 
     switch (inChar) {
         case 'b':

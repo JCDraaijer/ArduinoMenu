@@ -19,17 +19,20 @@ void enableUart() {
 /*
  * Get a character from UART, non-blocking
  */
-void getChar(CharResult *storage) {
+void getChar(CharResult *storage, uint8_t newline) {
     if (!(UCSR0A & _BV(RXC0))) {
         storage->success = 0;
     } else {
         storage->success = 1;
         storage->value = UDR0;
         printChar(storage->value);
+        if (newline){
+            printStr(NEWLINE);
+        }
     }
 }
 
-// Convert a hex character to an integer (0-F OR 0-f supported)
+// Convert a hex character to an integer (0-F and 0-f supported)
 int8_t hexToInt(uint8_t character) {
     if (character >= '0' && character <= '9') {
         return (character - ASCII_DECIMAL_OFFSET);

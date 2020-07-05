@@ -18,7 +18,7 @@ typedef struct CharResult {
 
 void enableUart();
 
-void getChar(CharResult *);
+void getChar(CharResult *result, uint8_t newline);
 
 void printChar(uint8_t data);
 

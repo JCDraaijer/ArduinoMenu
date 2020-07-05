@@ -6,7 +6,6 @@
 #include <avr/sleep.h>
 
 int running = 1;
-MenuState state = UNINITIALIZED;
 
 uint8_t nextValue = 0x00;
 uint8_t previousValue = 0x00;
@@ -25,9 +24,6 @@ ISR(TIMER0_COMPA_vect) {
         nextValue ^= 0xFFu;
         counter = 0;
     }
-    if (running) {
-        showMenu(&state, &running);
-    }
     TCNT0 = 0;
 }
 
@@ -38,6 +34,10 @@ int main(void) {
     DDRB = 0xff;
     setup1MSTimer();
     sei();
-    while (running);
+    MenuContext context = {};
+    context.currentState = UNINITIALIZED;
+    while (running) {
+        showMenu(&context, &running);
+    }
     set_sleep_mode(SLEEP_MODE_IDLE);
 }
