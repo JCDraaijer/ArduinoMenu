@@ -18,7 +18,15 @@ typedef struct CharResult {
 
 void setup1MSTimer();
 
-void enableUart();
+// void disable1MSTimer();
+
+void setupUart();
+
+// void disableUart();
+
+// void setupUartWakupPinInterrupt();
+
+// void disableUartWakupPinInterrupt();
 
 void getChar(CharResult *result, uint8_t newline, uint8_t blocking);
 
@@ -28,9 +36,9 @@ void printLine(const char *data);
 
 void printStr(const char *data);
 
-void sendHexInt(const uint8_t data);
+void printHexInt(const uint8_t data);
 
-void twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer);
+int twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer);
 
-void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len);
+int twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len);
 #endif //ARDUINOUNO_IOCONTROL_H

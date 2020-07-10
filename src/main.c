@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 
+int initialized = 0;
 int running = 1;
 
 uint8_t nextValue = 0x00;
@@ -26,17 +27,37 @@ ISR(TIMER0_COMPA_vect) {
     }
 }
 
+ISR(PCINT2_vect) {
+    cli();
+    // disableUartWakupPinInterrupt();
+    setupUart();
+    setup1MSTimer();
+    printLine("Resuming execution...");
+    running = 1;
+    sei();
+}
+
 // Do initial setup, enable output on DDRB, setup the timer so it will trigger an interrupt and go to the vector
 // defined above every millisecond
 int main(void) {
-    enableUart();
-    DDRB = 0xff;
-    setup1MSTimer();
-    sei();
+    if (!initialized) {
+        setupUart();
+        DDRB = 0xff;
+        setup1MSTimer();
+        sei();
+        initialized = 1;
+    }
     MenuContext context = {};
     context.currentState = UNINITIALIZED;
     while (running) {
         showMenu(&context, &running);
     }
-    set_sleep_mode(SLEEP_MODE_IDLE);
+    /* cli();
+    printLine("Going into sleep mode...");
+    setupUartWakupPinInterrupt();
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+    sei();
+    sleep_mode();
+    main();*/
+
 }

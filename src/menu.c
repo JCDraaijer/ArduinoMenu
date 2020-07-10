@@ -2,7 +2,7 @@
 #include "menu.h"
 #include "io/iocontrol.h"
 
-#define SHOULD_BLOCK 0
+#define SHOULD_BLOCK 1
 
 MenuState showMainMenu(uint8_t *printed);
 
@@ -130,10 +130,10 @@ MenuState showI2CMenu(uint8_t *printed, I2CInfo *info) {
     CharResult input;
     if (!*printed) {
         printStr("SLV addr: ");
-        sendHexInt(info->slaveAddress);
+        printHexInt(info->slaveAddress);
         printStr(NEWLINE);
         printStr("DATA addr: ");
-        sendHexInt(info->dataAddress);
+        printHexInt(info->dataAddress);
         printStr(NEWLINE);
     }
     printMenu(printed, menuItems, sizeof(menuItems) / sizeof(char **), &input);
@@ -149,7 +149,7 @@ MenuState showI2CMenu(uint8_t *printed, I2CInfo *info) {
             uint8_t value;
             twireadsingle(info->slaveAddress, info->dataAddress, &value);
             printStr("DATA value: 0x");
-            sendHexInt(value);
+            printHexInt(value);
             printStr(NEWLINE);
             *printed = 0;
             return I2C_MENU;

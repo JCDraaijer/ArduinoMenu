@@ -11,9 +11,13 @@
  * 38.4k = 25
  * 250k  = 3
  */
-void enableUart() {
+void setupUart() {
     UBRR0 = 25;
     UCSR0B |= _BV(TXEN0) | _BV(RXEN0);
+}
+
+void disableUart() {
+    UCSR0B = 0;
 }
 
 /*
@@ -25,6 +29,25 @@ void setup1MSTimer() {
     TCCR0B |= _BV(CS01) | _BV(CS00);
     OCR0A = 250;
     TIMSK0 |= _BV(OCIE0A);
+}
+
+void disable1MSTimer() {
+    if (TIMSK0 & _BV(OCIE0A)) {
+        TIMSK0 ^= _BV(OCIE0A);
+    }
+}
+
+void setupUartWakupPinInterrupt(){
+    disable1MSTimer();
+    disableUart();
+    PCMSK2 = _BV(PCINT16);
+    PCICR = _BV(PCIE2);
+}
+
+void disableUartWakupPinInterrupt(){
+    PCMSK2 = 0;
+    PCICR = 0;
+    setupUart();
 }
 
 // Convert a hex character to an integer (0-F and 0-f supported)
@@ -83,7 +106,7 @@ void printStr(const char *data) {
     }
 }
 
-void sendHexInt(const uint8_t data) {
+void printHexInt(const uint8_t data) {
     printChar(intToHex((data & 0xF0) >> 4));
     printChar(intToHex(data & 0x0F));
 }
@@ -93,13 +116,13 @@ void printLine(const char *data) {
     printStr(NEWLINE);
 }
 
-void twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer) {
-    twiread(slaveAddress, dataAddr, buffer, 1);
+int twireadsingle(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer) {
+    return twiread(slaveAddress, dataAddr, buffer, 1);
 }
 
 // An unsafe-as-all-hell twi read function (doesn't check for collisions or arbitration issues, just tries it's very best
 // to read some data from the address that it's given
-void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len) {
+int twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len) {
     // Shift address to the left by one, so it will be put into the address register correctly
     slaveAddress = slaveAddress << 1;
 
@@ -111,18 +134,25 @@ void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t le
     TWCR = _BV(TWEN) | _BV(TWSTA) | _BV(TWINT);
     while (!(TWCR & _BV(TWINT)));
 
-    // TODO check if arbitration and transmit were successful?
+    if (TW_STATUS != TW_START) {
+        return -1;
+    }
 
-    // Send the address of the slave we wish to read from
+    // Send the address of the slave we wish to read from in order to write data address
     TWDR = slaveAddress | TW_WRITE;
     TWCR |= _BV(TWINT);
     while (!(TWCR & _BV(TWINT)));
+    if (TW_STATUS != TW_MT_SLA_ACK) {
+        return -1;
+    }
 
     // Send the data address we wish to read from
     TWDR = dataAddr;
     TWCR = _BV(TWEN) | _BV(TWINT);
     while (!(TWCR & _BV(TWINT)));
-
+    if (TW_STATUS != TW_MT_DATA_ACK) {
+        return -1;
+    }
     // Resend the transmission start command
     TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWSTA);
     while (!(TWCR & _BV(TWINT)));
@@ -131,6 +161,10 @@ void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t le
     TWDR = slaveAddress | TW_READ;
     TWCR = _BV(TWEN) | _BV(TWINT);
     while (!(TWCR & _BV(TWINT)));
+    uint8_t tw_status = TW_STATUS;
+    if (tw_status != TW_START && tw_status != TW_REP_START) {
+        return -1;
+    }
 
     for (uint8_t twcr = _BV(TWEN) | _BV(TWINT) | _BV(TWEA); len > 0; len--) {
         if (len == 1) {
@@ -138,6 +172,11 @@ void twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t le
         }
         TWCR = twcr;
         while (!(TWCR & _BV(TWINT)));
-        *(buffer++) = TWDR;
+        if (TW_STATUS == TW_MR_DATA_ACK) {
+            *(buffer++) = TWDR;
+        } else {
+            return -1;
+        }
     }
+    return len;
 }
