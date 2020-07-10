@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <util/twi.h>
+#include <avr/interrupt.h>
 #include "iocontrol.h"
 
 /* Enable UART
@@ -17,7 +18,7 @@ void setupUart() {
 }
 
 void disableUart() {
-    UCSR0B = 0;
+    UCSR0B &= ~(_BV(TXEN0) | _BV(RXEN0));
 }
 
 /*
@@ -38,16 +39,19 @@ void disable1MSTimer() {
 }
 
 void setupUartWakupPinInterrupt() {
+    cli();
     disable1MSTimer();
     disableUart();
     PCMSK2 = _BV(PCINT16);
     PCICR = _BV(PCIE2);
+    sei();
 }
 
 void disableUartWakupPinInterrupt() {
-    PCMSK2 = 0;
-    PCICR = 0;
+    PCMSK2 &= ~(_BV(PCINT16));
+    PCICR &= ~(_BV(PCIE2));
     setupUart();
+    setup1MSTimer();
 }
 
 // Convert a hex character to an integer (0-F and 0-f supported)

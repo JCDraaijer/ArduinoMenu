@@ -29,9 +29,9 @@ ISR(TIMER0_COMPA_vect) {
 
 ISR(PCINT2_vect) {
     cli();
-    // disableUartWakupPinInterrupt();
-    setupUart();
-    setup1MSTimer();
+    disableUartWakupPinInterrupt();
+    CharResult result;
+    getChar(&result, 0, 1);
     printLine("Resuming execution...");
     running = 1;
     sei();
@@ -48,16 +48,14 @@ int main(void) {
         initialized = 1;
     }
     MenuContext context = {};
-    context.currentState = UNINITIALIZED;
-    while (running) {
-        showMenu(&context, &running);
+    while (1) {
+        context.currentState = UNINITIALIZED;
+        while (running) {
+            showMenu(&context, &running);
+        }
+        printLine("Going into sleep mode (press any button to resume)...");
+        setupUartWakupPinInterrupt();
+        set_sleep_mode(SLEEP_MODE_STANDBY);
+        sleep_mode();
     }
-    /* cli();
-    printLine("Going into sleep mode...");
-    setupUartWakupPinInterrupt();
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sei();
-    sleep_mode();
-    main();*/
-
 }

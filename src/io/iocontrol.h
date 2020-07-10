@@ -18,15 +18,15 @@ typedef struct CharResult {
 
 void setup1MSTimer();
 
-// void disable1MSTimer();
+void disable1MSTimer();
 
 void setupUart();
 
-// void disableUart();
+void disableUart();
 
-// void setupUartWakupPinInterrupt();
+void setupUartWakupPinInterrupt();
 
-// void disableUartWakupPinInterrupt();
+void disableUartWakupPinInterrupt();
 
 void getChar(CharResult *result, uint8_t newline, uint8_t blocking);
 
