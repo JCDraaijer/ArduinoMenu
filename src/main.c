@@ -55,6 +55,7 @@ int main(void) {
         }
         printLine("Going into sleep mode (press any button to resume)...");
         setupUartWakupPinInterrupt();
+        PORTB = 0;
         set_sleep_mode(SLEEP_MODE_STANDBY);
         sleep_mode();
     }
