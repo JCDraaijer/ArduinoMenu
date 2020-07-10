@@ -37,14 +37,14 @@ void disable1MSTimer() {
     }
 }
 
-void setupUartWakupPinInterrupt(){
+void setupUartWakupPinInterrupt() {
     disable1MSTimer();
     disableUart();
     PCMSK2 = _BV(PCINT16);
     PCICR = _BV(PCIE2);
 }
 
-void disableUartWakupPinInterrupt(){
+void disableUartWakupPinInterrupt() {
     PCMSK2 = 0;
     PCICR = 0;
     setupUart();
@@ -127,7 +127,6 @@ int twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len
     slaveAddress = slaveAddress << 1;
 
     //TODO disable interrupts globally to prevent interruption of TWI operation?
-
     // Send the "start transmission" command
     TWBR = 9;
     TWCR = _BV(TWEN);
@@ -153,6 +152,7 @@ int twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len
     if (TW_STATUS != TW_MT_DATA_ACK) {
         return -1;
     }
+
     // Resend the transmission start command
     TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWSTA);
     while (!(TWCR & _BV(TWINT)));
@@ -160,19 +160,21 @@ int twiread(uint8_t slaveAddress, uint8_t dataAddr, uint8_t *buffer, uint8_t len
     // Send the slave address and indicate that we wish to read from it
     TWDR = slaveAddress | TW_READ;
     TWCR = _BV(TWEN) | _BV(TWINT);
+
     while (!(TWCR & _BV(TWINT)));
-    uint8_t tw_status = TW_STATUS;
-    if (tw_status != TW_START && tw_status != TW_REP_START) {
+
+    if (TW_STATUS != TW_MR_SLA_ACK) {
         return -1;
     }
-
     for (uint8_t twcr = _BV(TWEN) | _BV(TWINT) | _BV(TWEA); len > 0; len--) {
         if (len == 1) {
             twcr = _BV(TWEN) | _BV(TWINT);
         }
         TWCR = twcr;
         while (!(TWCR & _BV(TWINT)));
-        if (TW_STATUS == TW_MR_DATA_ACK) {
+
+        uint8_t twstat = TW_STATUS;
+        if ((len > 1 && twstat == TW_MR_DATA_ACK) || (len == 1 && twstat == TW_MR_DATA_NACK)) {
             *(buffer++) = TWDR;
         } else {
             return -1;
